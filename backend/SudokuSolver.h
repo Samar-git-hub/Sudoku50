@@ -15,32 +15,37 @@ private:
     int column;
 
 public:
-    variables() : value(0), row(0), column(0) { // default constructor to assign default values to variables object
+    // Default constructor to assign initial domain values
+    variables() : value(0), row(0), column(0) {
         for (int i = 1; i <= 9; i++) {
             domain.push_back(i);
         }
     }
-    variables(int value, int row, int column){
+
+    variables(int value, int row, int column) {
         this->row = row;
         this->column = column;
         setValue(value);
     }
-    // the below methods for controlled access outside the class,
-    // as the variables themselves are private above
-    int getValue(){
+
+    // Accessor methods for private members
+    int getValue() const {
         return value;
     }
-    vector<int> getDomain(){
+
+    vector<int> getDomain() const {
         return domain;
     }
-    int getRow(){
+
+    int getRow() const {
         return row;
     }
-    int getColumn(){
+
+    int getColumn() const {
         return column;
     }
 
-    // set value
+    // Set value and update domain
     void setValue(int value) {
         this->value = value;
         domain.clear();  
@@ -56,37 +61,34 @@ public:
 
 class constraints {
 private:
-
-    // if the value lies between 0 and 9 (it is valid, hence returns true)
-    bool satisfyunary(int value){
-       return (value >= 0 && value <= 9);
+    // Check unary constraint (value between 0 and 9)
+    bool satisfyunary(int value) {
+        return (value >= 0 && value <= 9);
     }
 
-    bool satisfygrid(int value, int row, int col, int grid[9][9]){
-        
-        // checking row: 
-        for(int i = 0; i < 9; i++){ // basically doesnt satusfy if the row 
-        // has the same value in another position that is not the column
-            if (grid[row][i] == value && i != col){
+    // Check grid constraints (row, column, and 3x3 block)
+    bool satisfygrid(int value, int row, int col, int grid[9][9]) {
+        // Row check: value must not appear elsewhere in the row
+        for (int i = 0; i < 9; i++) {
+            if (grid[row][i] == value && i != col) {
                 return false;
             }
         }
 
-        // checking columns
-        for(int j = 0; j < 9; j++){ // basically doesnt satusfy if the column
-        // has the same value in another position that is not the row
-            if (grid[j][col] == value && j != row){
+        // Column check: value must not appear elsewhere in the column
+        for (int j = 0; j < 9; j++) {
+            if (grid[j][col] == value && j != row) {
                 return false;
             }
         }
 
-        // checking 3x3 grid
+        // 3x3 block check: value must not appear elsewhere in the subgrid
         int startr = row - row % 3;
         int startc = col - col % 3;
-        for(int i = 0; i < 3; i++){
-            for(int j = 0; j < 3; j++){
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
                 if (grid[startr + i][startc + j] == value && 
-                    (startr + i != row || startc + j != col)){
+                    (startr + i != row || startc + j != col)) {
                     return false;
                 }
             }
@@ -94,9 +96,9 @@ private:
         return true;
     }
 
-public: // as the above methods are private, this public method
-        // is usable by sudokusolver
-    bool isValid(int value, int row, int col, int grid[9][9]){
+public:
+    // Public validation method used by sudokusolver
+    bool isValid(int value, int row, int col, int grid[9][9]) {
         return satisfyunary(value) && satisfygrid(value, row, col, grid);
     }
 }; 
@@ -106,62 +108,88 @@ private:
     variables sudokuGrid[9][9]; 
 
 public:
-    // initializing in the constructor (with our private sudokuGrid)
+    // Initialize solver grid
     sudokusolver(int grid[9][9]) {
-        for (int i = 0; i < 9; i++){
-            for (int j = 0; j < 9; j++){
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
                 sudokuGrid[i][j] = variables(grid[i][j], i, j);
             }
         }
     }
 
-    bool isfinalstate(int grid[9][9]){
-        for (int i = 0; i < 9; i++){
-            for (int j = 0; j < 9; j++){
-                if (grid[i][j] == 0) 
-                return false;
+    // Check if grid has no empty cells remaining
+    bool isfinalstate(int grid[9][9]) {
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                if (grid[i][j] == 0) {
+                    return false;
+                }
             }
         }
         return true;
     }
 
-    bool backtrack(int grid[9][9]){
-        if (isfinalstate(grid)){
+    // Backtracking search algorithm
+    bool backtrack(int grid[9][9]) {
+        if (isfinalstate(grid)) {
             return true;
         }
         
-        for(int i = 0; i < 9; i++){
-            for(int j = 0; j < 9; j++){
-                if (grid[i][j] == 0){ // checking for empty values
-                    constraints c; // creating an instance for constraints
-                    for (int val = 1; val <= 9; val++){ // iterate through all possible values for the variable (1 to 9)
-                        if (c.isValid(val, i, j, grid)){ // check if value is valid
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                if (grid[i][j] == 0) { // Check for empty cell
+                    constraints c;
+                    for (int val = 1; val <= 9; val++) { // Try possible values 1 to 9
+                        if (c.isValid(val, i, j, grid)) { // Check if value satisfies constraints
                             grid[i][j] = val;
-                            if (backtrack(grid)){ // if yes, recrusively check for other values
+                            if (backtrack(grid)) { // Recursively check remaining cells
                                 return true;
                             }
-                            else {
-                                grid[i][j] = 0; // reset if the variable cannot have that value
-                            }
+                            grid[i][j] = 0; // Reset if value leads to dead end
                         }
                     }
-                    return false; // if the variable cannot have any value from domain, backtrack
+                    return false; // Backtrack if no value works
                 }
             }
         }
-        return true; // redudant but basically indicates final state
+        return true;
     }
 
-    bool solve() {
+    // Validate that initial non-empty numbers do not conflict
+    bool isInitialValid() {
+        constraints c;
         int tempGrid[9][9];
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
                 tempGrid[i][j] = sudokuGrid[i][j].getValue();
             }
         }
-        if (backtrack(tempGrid)){
-            for (int i = 0; i < 9; i++){
-                for (int j = 0; j < 9; j++){
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                int val = tempGrid[i][j];
+                if (val < 0 || val > 9) return false;
+                if (val != 0 && !c.isValid(val, i, j, tempGrid)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    // Solve puzzle with initial validation and backtracking
+    bool solve() {
+        if (!isInitialValid()) {
+            return false;
+        }
+        int tempGrid[9][9];
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                tempGrid[i][j] = sudokuGrid[i][j].getValue();
+            }
+        }
+        if (backtrack(tempGrid)) {
+            for (int i = 0; i < 9; i++) {
+                for (int j = 0; j < 9; j++) {
                     sudokuGrid[i][j].setValue(tempGrid[i][j]);
                 }
             }
@@ -170,9 +198,20 @@ public:
         return false;
     }
 
+    int getCell(int r, int c) const {
+        return sudokuGrid[r][c].getValue();
+    }
 
+    void getGrid(int outGrid[9][9]) const {
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                outGrid[i][j] = sudokuGrid[i][j].getValue();
+            }
+        }
+    }
+
+    // Print grid formatted to stdout
     void printGrid() {
-        
         for (int i = 0; i < 9; i++) {
             if (i % 3 == 0) { 
                 cout << "+-------+-------+-------+" << endl;
@@ -189,4 +228,4 @@ public:
     }      
 }; 
 
-#endif 
+#endif
